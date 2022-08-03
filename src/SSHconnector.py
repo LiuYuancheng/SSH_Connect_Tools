@@ -16,7 +16,7 @@
 """ Program Design:
     We want to create a ssh connector program to provide single/multiple ssh access
     tunnel function through jumphosts and execute command as normal user or admin on
-    different host. The commmands will be added in a queue and execution sequence will
+    different host. The commands will be added in a queue and execution sequence will
     be FIFO.
     
     SSH tunnel function:
