@@ -177,6 +177,15 @@ class sshConnector(object):
 
         for childconnector in self.childConnectors:
             childconnector.runCmd(interval=interval)
+
+#-----------------------------------------------------------------------------
+    def getTransport(self):
+        if not self.lock:
+            print("The tunnel is not init, please call the initTunnel first!")
+            return None
+        else:
+            return self.client.get_transport()
+
 #-----------------------------------------------------------------------------
     def setAllreplyHandler(self, func):
         """ set the replay handler for all the cmd's reply.
@@ -191,4 +200,5 @@ class sshConnector(object):
         for  childConnector in self.childConnectors:
             childConnector.close()
         if self.client: self.client.close()
+
 
