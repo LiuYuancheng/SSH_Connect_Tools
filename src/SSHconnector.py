@@ -47,6 +47,9 @@
     4. Init the ssh tunnel chain by all the root connector's InitTunnel().
     5. Run all the cmds in every connecot by call the root connectors' runCmd() function.
     6. After finished call root connector's close() to close all the ssh session.
+
+    Detail usage example refer to testcase file <sshConnectorTest.py>
+
 """
 
 import time
