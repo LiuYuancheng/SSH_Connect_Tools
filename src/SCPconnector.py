@@ -99,7 +99,7 @@ class scpConnector(object):
         """ Upload srcPath file to the destination. 
         Args:
             srcPath (str): source file path.
-            destPath (str): desination file path.
+            destPath (str): destination file path.
         """
         if self.scpClient:
             if os.path.exists(srcPath):
@@ -117,7 +117,7 @@ class scpConnector(object):
     def downFile(self, srcPath, localPath=''):
         """ download file from destination.
         Args:
-            srcPath (_type_): destination host file path.
+            srcPath (str): destination host file path.
             localPath (str, optional): local path. Defaults to '' same as the program
                 folder.
         """
