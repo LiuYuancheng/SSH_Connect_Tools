@@ -9,9 +9,9 @@
 # Author:      Yuancheng Liu
 #
 # Created:     2022/08/01
-# Version:     v_0.1
-# Copyright:   National Cybersecurity R&D Laboratories
-# License:     
+# Version:     v_0.1.3
+# Copyright:   Copyright (c) 2022 LiuYuancheng
+# License:     MIT License   
 #-----------------------------------------------------------------------------
 """ Program Design:
     We want to create a ssh connector program to provide single/multiple ssh access
@@ -86,11 +86,11 @@ class sshConnector(object):
 
 #-----------------------------------------------------------------------------
     def addChild(self, childConnector):
-        """ Add a ssh connector/paramiko.SSHClient as a child. 
-        Args:
-            childConnector (sshConnector): ssh connector/paramiko.SSHClient object.
-        Returns:
-            bool: True if the chlid is added. 
+        """ Add a sshConnector obj or a paramiko.SSHClient obj as a child. 
+            Args:
+                childConnector (sshConnector): ssh connector/paramiko.SSHClient object.
+            Returns:
+                bool: True if the chlid is added. 
         """
         if self.lock: 
             print("Error: can not add new child host: children host adding locked!")
@@ -175,8 +175,10 @@ class sshConnector(object):
                 stdin.flush()
             if interval:
                 time.sleep(interval)
-            # Handle the cmd reply.    
-            rplDict = {'host': self.host, 'cmd':  cmdline, 'reply':stdout.read().decode()} if self.replyHandler or handleFun else None
+            # Handle the cmd reply.
+            cmdRst = stdout.read().decode()
+            if not cmdRst: cmdRst = stderr.read().decode()
+            rplDict = {'host': self.host, 'cmd':  cmdline, 'reply':cmdRst} if self.replyHandler or handleFun else None
             if handleFun: handleFun(rplDict)
             if self.replyHandler: self.replyHandler(rplDict)
 
@@ -205,5 +207,58 @@ class sshConnector(object):
         for  childConnector in self.childConnectors:
             childConnector.close()
         if self.client: self.client.close()
+
+def printRst(data):
+    print("Host: %s" % data['host'])
+    print("Cmd: %s" % data['cmd'])
+    print("Result:\n %s" % data['reply'])
+
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+def main():
+    print("Test init single line ssh tunnel connection through multiple jumphosts")
+    jumphostNum = int(input("Input jumphost number:"))
+    mainHost = None
+    jpHost = None 
+    tgtHost = None
+    if jumphostNum > 0:
+        for i in range (int(jumphostNum)):
+            host = str(input("Input jumphost %d hostname:"%(i+1)))
+            username = str(input("Input jumphost %d username:"%(i+1)))
+            password = str(input("Input jumphost %d password:"%(i+1)))
+            if i == 0:
+                mainHost = sshConnector(None, host, username, password)
+                jpHost = mainHost
+            elif 0 < i < jumphostNum-1:
+                nextjpHost = sshConnector(mainHost, host, username, password)
+                jpHost.addChild(nextjpHost)
+                jpHost = nextjpHost
+            else:
+                tgtHost = sshConnector(jpHost, host, username, password)
+                jpHost.addChild(tgtHost)
+    else:
+        host = str(input("Input target hostname:"))
+        username = str(input("Input target username:"))
+        password = str(input("Input target password:"))     
+        mainHost = tgtHost = sshConnector(None, host, username, password)
+
+    mainHost.InitTunnel()
+    terminate = False 
+    while not terminate:
+        cmd = input("Input command:")
+        if cmd == "exit":
+            terminate = True
+        else:
+            tgtHost.addCmd(None, None)
+            tgtHost.addCmd(cmd, printRst)
+            mainHost.runCmd()
+    
+    mainHost.close()
+
+if __name__ == '__main__':
+    main()
+
+
+
 
 
