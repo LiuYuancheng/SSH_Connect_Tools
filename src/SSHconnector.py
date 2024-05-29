@@ -27,12 +27,12 @@
     2.Multiple connection (root)
         A ---> jumphost1 ---> jumphost2 ---> ... ---> targethost1 (run cmd)
                     |
-                    + ---> jumphost3 ---> ... ---> targethost2
+                    + ---> jumphost3 (run cmd) ---> ... ---> targethost2
                                 |
                                 + ---> jumphost4 ---> ... ---> targethost3
 
     3.Multiple connection (tree)
-        A ---> jump host1 ---> target host
+        A ---> jump host1 (run cmd) ---> target host (run cmd)
                |
         B ---> +
                |
@@ -42,12 +42,12 @@
     This module need to use the python paramiko ssh lib: https://www.paramiko.org/
     
     Usage steps:
-    1. Init all the connectos.
+    1. Init all the connectors.
     2. Create the ssh tunnel chain by addChlid() function.
-    3. Add the cmd you want to execute and the reply handler function in each host's 
+    3. Add the cmd you want to execute and the result handler function in each host's 
        related connector by addCmd() function.
     4. Init the ssh tunnel chain by all the root connector's InitTunnel().
-    5. Run all the cmds in every connecot by call the root connectors' runCmd() function.
+    5. Run all the cmds in every connector by call the root connectors' runCmd() function.
     6. After finished call root connector's close() to close all the ssh session.
 
     Detail usage example refer to testcase file <sshConnectorTest.py>
@@ -63,13 +63,13 @@ CH_KIND = 'direct-tcpip' # open channel type/kind for jump hosts, we use direct 
 class sshConnector(object):
 
     def __init__(self, parent, host, username, password, port=22) -> None:
-        """ Init the ssh connector obj.
-        Args:
-            parent (sshConnector or paramiko.SSHClient: parent ssh client.
-            host (str): host ip address or host domain name.
-            username (str): username.
-            password (str): user password.
-            port (int, optional): ssh port. Defaults to 22.
+        """ Init the ssh connector obj. example: mainHost = sshConnector(None, host, username, password)
+            Args:
+                parent (sshConnector or paramiko.SSHClient): parent ssh client.
+                host (str): host ip address or host domain name.
+                username (str): username.
+                password (str): user password.
+                port (int, optional): ssh port. Defaults to 22.
         """
         # init public parameters.
         self.parent = parent        # object parent. 
@@ -80,6 +80,7 @@ class sshConnector(object):
         self.client = None
         
         self.childConnectors = []   # children connectors.
+        self.connected = False
         self.cmdlines = []          # commands need to run under the current host.
         self.replyHandler = None    # own reply handler.
         self.lock = False           # lock the new added in
@@ -102,18 +103,21 @@ class sshConnector(object):
     def addCmd(self, cmdline, handleFun=None):
         """ Add the a cmd need to be executed in the current connector. (remove
             all the cmds in the command list if the input is 'None')
-        Args:
-            cmdline (string): command line string.
-            handleFun: a function use to handle the command response. default use 
-                       None. Below reply dict will be passed in the handle function.
-                       reply = { 'host': self.host,
-                                 'cmd':  cmdline,
-                                 'reply':stdout.read().decode()}
+            Args:
+                cmdline (string): command line string.
+                handleFun: a function used to handle the command response. default use 
+                        None. Below reply dict will be passed in the handle function.
+                        reply = {   'host': self.host,
+                                    'cmd':  cmdline,
+                                    'reply':stdout.read().decode()}
         """
         if cmdline is None: 
             self.cmdlines = []
         else:
             self.cmdlines.append((cmdline, handleFun))
+
+    def clearCmdList(self):
+        self.cmdlines = []
 
 #-----------------------------------------------------------------------------
     def clearChildren(self):
@@ -136,6 +140,7 @@ class sshConnector(object):
         self.lock = True    # lock the connector's edit after tunnel init.
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        result = True
         if self.parent and self.parent.client:  # the parent's client need to be init.
             # create a transport socket channel if the connector is mid jumphost.
             transport = self.parent.client.get_transport()
@@ -143,14 +148,25 @@ class sshConnector(object):
             destAddr = (self.host, self.port)
             # create the channle from parent to current host.
             channel = transport.open_channel(CH_KIND, destAddr, srcAddr)
-            self.client.connect(self.host, username=self.username,
-                                password=self.password, port=self.port, sock=channel)
+            try:
+                self.client.connect(self.host, username=self.username,
+                                    password=self.password, port=self.port, sock=channel)
+            except Exception as err:
+                print("SSH connection error: %s" % str(err))
+                result = False
         else:
-            self.client.connect(self.host, username=self.username,
-                                password=self.password, port=self.port)
+            try:
+                self.client.connect(self.host, username=self.username,
+                                    password=self.password, port=self.port)
+            except Exception as err:
+                print("SSH connection error: %s" % str(err))
+                result = False
         # Init all the children.
         for childconnector in self.childConnectors:
-            childconnector.InitTunnel()
+            rst = childconnector.InitTunnel()
+            result &= rst
+        self.connected = result
+        return result
 
 #-----------------------------------------------------------------------------
     def runCmd(self, interval=0.1):
@@ -208,19 +224,20 @@ class sshConnector(object):
             childConnector.close()
         if self.client: self.client.close()
 
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 def printRst(data):
     print("Host: %s" % data['host'])
     print("Cmd: %s" % data['cmd'])
-    print("Result:\n %s" % data['reply'])
+    print("Result:\n%s" % data['reply'])
 
-#-----------------------------------------------------------------------------
-#-----------------------------------------------------------------------------
 def main():
-    print("Test init single line ssh tunnel connection through multiple jumphosts")
+    print("Test init single line ssh tunnel connection through multiple jumphosts.")
     jumphostNum = int(input("Input jumphost number:"))
     mainHost = None
     jpHost = None 
     tgtHost = None
+    # init all the jump host connectors
     if jumphostNum > 0:
         for i in range (int(jumphostNum)):
             host = str(input("Input jumphost %d hostname:"%(i+1)))
@@ -233,16 +250,19 @@ def main():
                 nextjpHost = sshConnector(mainHost, host, username, password)
                 jpHost.addChild(nextjpHost)
                 jpHost = nextjpHost
-            else:
-                tgtHost = sshConnector(jpHost, host, username, password)
-                jpHost.addChild(tgtHost)
+    # Init the target host connector
+    host = str(input("Input target hostname:"))
+    username = str(input("Input target username:"))
+    password = str(input("Input target password:"))     
+    tgtHost = sshConnector(None, host, username, password)
+    if mainHost is None:
+        mainHost = tgtHost
     else:
-        host = str(input("Input target hostname:"))
-        username = str(input("Input target username:"))
-        password = str(input("Input target password:"))     
-        mainHost = tgtHost = sshConnector(None, host, username, password)
-
-    mainHost.InitTunnel()
+        mainHost.addChild(tgtHost)
+    initRst = mainHost.InitTunnel()
+    if not initRst:
+        print("Init tunnel failed! exist...")
+        return None 
     terminate = False 
     while not terminate:
         cmd = input("Input command:")
@@ -252,9 +272,9 @@ def main():
             tgtHost.addCmd(None, None)
             tgtHost.addCmd(cmd, printRst)
             mainHost.runCmd()
-    
     mainHost.close()
 
+#-----------------------------------------------------------------------------
 if __name__ == '__main__':
     main()
 
