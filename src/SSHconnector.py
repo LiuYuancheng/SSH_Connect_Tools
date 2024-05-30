@@ -17,7 +17,7 @@
     We want to create a ssh connector program to provide single/multiple ssh access
     tunnel function through jumphosts and execute command as normal user or admin on
     different host. The commands will be added in a queue and execution sequence will
-    be FIFO. The connectors can be combined togeter to build ssh tennel chain.
+    be FIFO. The connectors can be combined together to build ssh tunnel chain.
     
     SSH tunnel function:
 

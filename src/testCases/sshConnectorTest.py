@@ -30,7 +30,7 @@ import SSHconnector
 
 def testCase(case):
 
-    print("Test Case 1: test ssh tunnel chain and run cmd.")
+    print("Test Case 1: test ssh tunnel chain and run cmds on all hosts.")
     # load the ssh credential and config file
     credentialCfgFile = 'sshConnectorTestConfig01.json'
     credentialCfg = []
