@@ -30,32 +30,67 @@ This project provide 3 main modules to help user to automated SSH run multiple c
 2. **SCP-Connector**: The SCP connector is used to do the file transfer(upload/download) files among different node through the SSH  tunnel tree. 
 3. **SSH-Forwarder**: The SSH forwarder is aimed to help do the ssh port forward to forward the communication traffic from a node in the network to the user's local machine through the SSH tunnel tree. 
 
-We use the lib [paramiko](https://www.paramiko.org/) and [python-scp](https://pypi.org/project/scp/) to implement the modules. 
+We use the lib [paramiko](https://www.paramiko.org/) and [python-scp](https://pypi.org/project/scp/) to implement the modules, in the project will will also provide the testcase module and usage example such as the target SSH load testing program. 
 
 
 
 #### SSH Connector Introduction
 
+The SSH connector is aimed to create a SSH connector to build a ssh connection tunnel tree to let the user can access and execute command on different hosts through multiple jump hosts in a cluster. It can be apply on below usage scenarios
+
+**Scenario01**: linear connection uses one account to access the targe host through several jump hosts
+
+![](doc/img/rm_03_sce1.png)
+
+- Description: User can pass the SSH command set config to the connector and run the commands set on different hosts in the SSH tunnel chain parallel or in sequence. Each account will be use d to login the hosts once.
+- Use case: normal SSH command automated and result collection.
+- Connector Configuration:
+
+| SSH command List/Set       | SSH credential            | Thread        | SSH tunnel    |
+| -------------------------- | ------------------------- | ------------- | ------------- |
+| One list/set for each host | One account for each host | Single thread | Single tunnel |
 
 
 
+**Scenario02**: Multiple linear connection use single/multiple account to access the target host through several jump hosts
 
-The ssh connector be used for implementing below tasks/scenario. 
+![](doc/img/rm_04_sce2.png)
 
-1. Single user uses one account to access the targe host through several jump hosts: 
+- Description: User can pass different SSH command set config to the connector and run different SSH command in parallel thread run the command set with same account on the host in the SSH tunnel chain at the same time. Each account will be used to login the hosts multiple times.
+- Use case: Cluster nodes stress test or traffic generation.
+- Connector Configuration:
 
-   ![](doc/img/sshTunnel1.png)
+| SSH command List/Set            | SSH credential                 | Thread          | SSH tunnel      |
+| ------------------------------- | ------------------------------ | --------------- | --------------- |
+| multiple list/set for each host | multiple account for each host | multiple thread | multiple tunnel |
 
-2. Multiple users use same account to access the same target host through several jump hosts:
 
-   ![](doc/img/sshTunnel2.png)
 
-3. Single user use different account to access multiple targe hosts through jump hosts:
+**Scenario03**: tree connection uses multiple account to access the targe host through several jump hosts
 
-   ![](doc/img/sshTunnel3.png)
+![](doc/img/rm_05_sce3.png)
 
-4. Multiple user use different accounts to access multiple target hosts through different/same jump hosts:
+- Description: User can the connector to build the ssh tunnel tree to run different SSH command in parallel thread. 
+- Use case: Linked to cluster server's management interface(ILO or IPMI) to collect the data. 
+- Connector Configuration:
 
-   ![](doc/img/sshTunnel4.png)
+| SSH command List/Set            | SSH credential            | Thread          | SSH tunnel      |
+| ------------------------------- | ------------------------- | --------------- | --------------- |
+| multiple list/set for each host | One account for each host | multiple thread | multiple tunnel |
 
-5. -- 
+
+
+**Scenario04**: mixed connection uses multiple account to access the targe host through several jump hosts
+
+![](doc/img/rm_06_sce4.png)
+
+- Description: User can use the connector to build the ssh tunnel chain and tree to run different SSH command in parallel thread on different hosts.
+- Use case: Loading test for a ssh service such as CTF hands-on VM service cluster. 
+- Connector Configuration:
+
+| SSH command List/Set            | SSH credential                  | Thread          | SSH tunnel      |
+| ------------------------------- | ------------------------------- | --------------- | --------------- |
+| multiple list/set for each host | multiple accounts for each host | multiple thread | multiple tunnel |
+
+
+
