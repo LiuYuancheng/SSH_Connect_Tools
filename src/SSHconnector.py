@@ -10,14 +10,14 @@
 #
 # Created:     2022/08/01
 # Version:     v_0.1.3
-# Copyright:   Copyright (c) 2022 LiuYuancheng
+# Copyright:   Copyright (c) 2024 LiuYuancheng
 # License:     MIT License   
 #-----------------------------------------------------------------------------
 """ Program Design:
     We want to create a ssh connector program to provide single/multiple ssh access
     tunnel function through jumphosts and execute command as normal user or admin on
     different host. The commands will be added in a queue and execution sequence will
-    be FIFO.
+    be FIFO. The connectors can be combined togeter to build ssh tennel chain.
     
     SSH tunnel function:
 
@@ -76,6 +76,7 @@ class sshConnector(object):
         self.host = host
         self.username = username
         self.password = password
+        self.sudoPassword = None
         self.port = port
         self.client = None
         
@@ -120,6 +121,14 @@ class sshConnector(object):
         self.cmdlines = []
 
 #-----------------------------------------------------------------------------
+    def addSudoPassword(self, sudoPassword):
+        """ Add the sudo password for the current connector.
+            Args:
+                sudoPassword (string): sudo password.
+        """
+        self.sudoPassword = sudoPassword
+
+#-----------------------------------------------------------------------------
     def clearChildren(self):
         """ Remove all the children connectors."""
         self.close()
@@ -152,14 +161,14 @@ class sshConnector(object):
                 self.client.connect(self.host, username=self.username,
                                     password=self.password, port=self.port, sock=channel)
             except Exception as err:
-                print("SSH connection error: %s" % str(err))
+                print("SSH connection error > InitTunnel(): %s" % str(err))
                 result = False
         else:
             try:
                 self.client.connect(self.host, username=self.username,
                                     password=self.password, port=self.port)
             except Exception as err:
-                print("SSH connection error: %s" % str(err))
+                print("SSH connection error > InitTunnel(): %s" % str(err))
                 result = False
         # Init all the children.
         for childconnector in self.childConnectors:
@@ -172,13 +181,13 @@ class sshConnector(object):
     def runCmd(self, interval=0.1):
         """ Run the cmd in the command queue one by one, sleep time interval 
             after finihsed executed one command.
-        Args:
-            interval (_type_, optional): Sleep time after time interval (unit second). 
-                                        Defaults to None.
+            Args:
+                interval (_type_, optional): Sleep time after time interval 
+                    (unit second). Defaults to None.
         """
         if not self.lock:
-            print("Error: can not run cmd, please init the tunnel first!")
-            return
+            print("Error > runCmd(): can not run cmd, please init the tunnel first!")
+            return None
         for cmdset in self.cmdlines:
             cmdline, handleFun = cmdset
             print("Run cmd in host: %s" % str(self.host))
@@ -187,7 +196,8 @@ class sshConnector(object):
             stdin, stdout, stderr = self.client.exec_command(cmdline, get_pty=pty)  # edited#
             # Input the sudo password, TODO: will add the function updateSudoPasswd() later.
             if pty:
-                stdin.write('%s\n' % self.password)
+                sudoPasswordStr = self.password if self.sudoPassword is None else self.sudoPassword
+                stdin.write('%s\n' % sudoPasswordStr)
                 stdin.flush()
             if interval:
                 time.sleep(interval)
@@ -220,7 +230,7 @@ class sshConnector(object):
 #-----------------------------------------------------------------------------
     def close(self):
         """ Close all session."""
-        for  childConnector in self.childConnectors:
+        for childConnector in self.childConnectors:
             childConnector.close()
         if self.client: self.client.close()
 
@@ -233,7 +243,7 @@ def printRst(data):
 
 def main():
     print("Test init single line ssh tunnel connection through multiple jumphosts.")
-    jumphostNum = int(input("Input jumphost number:"))
+    jumphostNum = int(input("Input jumphost number (int):"))
     mainHost = None
     jpHost = None 
     tgtHost = None
