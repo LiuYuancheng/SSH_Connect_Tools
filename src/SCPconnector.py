@@ -9,9 +9,9 @@
 # Author:      Yuancheng Liu
 #
 # Created:     2022/08/01
-# Version:     v_0.1
-# Copyright:   National Cybersecurity R&D Laboratories
-# License:     
+# Version:     v_0.1.3
+# Copyright:   Copyright (c) 2024 LiuYuancheng
+# License:     MIT License       
 #-----------------------------------------------------------------------------
 """ Program Design:
     We want to create a scp connector which can scp transfer files (upload/download) 
@@ -47,18 +47,19 @@ TNL_TEST_CMD = 'pwd' # a test cmd to confirm the ssh tunnel is ready.
 class scpConnector(object):
 
     def __init__(self, destInfo, jumpChain=None, showProgress=False) -> None:
-        """ Init the connector.
-        Args:
-            destInfo (tuple): The destation host's ssh login information. 
-                example: (sshHost(ip/domain), userName, password) 
-            jumpChain (list, optional): The jump host chain ssh info:
-                scpConnectorHost ---> jumphost1 ---> jumphost2---> ... ---> destinationHost
-                [jumphost1Infor, jumphost2Info]. 
-                example: 
-                    [(JumpHost1_ip, userName, password),  (JumpHost2_ip, userName, password) ...]
-                Defaults to None.
-            showProgress (bool, optional): Flag to identify whether show the file transmation 
-                progress. Defaults to False, better to set True when transfer big file.
+        """ Init the connector obj. Example: 
+                scpClient = scpConnector(('gateway.ncl.sg', '<username>', '<password>'), showProgress=True)
+            Args:
+                destInfo (tuple): The destation host's ssh login information. 
+                    example: (sshHost(ip/domain), userName, password) 
+                jumpChain (list, optional): The jump host chain ssh info:
+                    scpConnectorHost ---> jumphost1 ---> jumphost2---> ... ---> destinationHost
+                    [jumphost1Infor, jumphost2Info]. 
+                    example: 
+                        [(JumpHost1_ip, userName, password),  (JumpHost2_ip, userName, password) ...]
+                    Defaults to None.
+                showProgress (bool, optional): Flag to identify whether show the file transmation 
+                    progress. Defaults to False, better to set True when transfer big file.
         """
         self.destHost = None
         if len(destInfo) != 3:
@@ -73,6 +74,7 @@ class scpConnector(object):
         else:
             jumpHostHead = jumpHostTail = None
             for jumpInfo in jumpChain:
+                if jumpInfo is None or len(jumpInfo) != 3: continue
                 sshHostJP, userNameJP, passwordJP = jumpInfo
                 if jumpHostHead is None:
                     jumpHostHead = jumpHostTail = sshConnector(None, sshHostJP, userNameJP, passwordJP)
@@ -97,9 +99,9 @@ class scpConnector(object):
 #-----------------------------------------------------------------------------
     def uploadFile(self, srcPath, destPath):
         """ Upload srcPath file to the destination. 
-        Args:
-            srcPath (str): source file path.
-            destPath (str): destination file path.
+            Args:
+                srcPath (str): source file path.
+                destPath (str): destination file path.
         """
         if self.scpClient:
             if os.path.exists(srcPath):
@@ -107,19 +109,19 @@ class scpConnector(object):
                     self.scpClient.put(srcPath, destPath)
                     print("File %s transfer finished" % str(srcPath))
                 except Exception as err:
-                    print("File translate failed: %s" % str(err))
+                    print("Error > uploadFile() File translate failed: %s" % str(err))
             else:
-                print("The srouce file is not exist")
+                print("Error > uploadFile() The srouce file is not exist.")
         else:
-            print("The scpConnector is not inited.")
+            print("Warning > uploadFile() The scpConnector is not inited.")
 
 #-----------------------------------------------------------------------------
-    def downFile(self, srcPath, localPath=''):
-        """ download file from destination.
-        Args:
-            srcPath (str): destination host file path.
-            localPath (str, optional): local path. Defaults to '' same as the program
-                folder.
+    def downloadFile(self, srcPath, localPath=''):
+        """ Download file from destination.
+            Args:
+                srcPath (str): destination host file path.
+                localPath (str, optional): local path. Defaults to None same as the program
+                    folder.
         """
         if self.scpClient: 
             try:
@@ -127,9 +129,9 @@ class scpConnector(object):
                 if localPath and os.path.exists(srcPath):
                     print("File %s transfer finished" % str(srcPath))
             except Exception as err:
-                print("File translate failed: %s" %str(err))
+                print("Error > downloadFile() File translate failed: %s" %str(err))
         else:
-            print("The scpConnector client is not inited")
+            print("Warning > downloadFile() The scpConnector client is not inited.")
 
 #-----------------------------------------------------------------------------
     def close(self):
@@ -137,4 +139,42 @@ class scpConnector(object):
         self.scpClient.close()
         self.destHost.close()
 
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+def main():
+    print("Test init single line ssh tunnel connection through multiple jumphosts.")
+    jumphostNum = int(input("Input jumphost number (int):"))
+    jumpHostChain = []
+    if jumphostNum > 0:
+        for i in range (int(jumphostNum)):
+            host = str(input("Input jumphost %d hostname:"%(i+1)))
+            username = str(input("Input jumphost %d username:"%(i+1)))
+            password = str(input("Input jumphost %d password:"%(i+1)))
+            jumpHostChain.append((host, username, password))
+    host = str(input("Input target hostname:"))
+    username = str(input("Input target username:"))
+    password = str(input("Input target password:")) 
+    scpClient = scpConnector((host, username, password), 
+                             jumpChain=jumpHostChain, showProgress=True)
+    while True:
+        print("1. scp upload file.")
+        print("2. scp download file.")
+        print("3. close scpClient.")
+        choice = str(input("Input your choice (1/2/3):"))
+        if choice == '1':
+            srcPath = str(input("Input source file path:"))
+            destPath = str(input("Input destination file path:"))
+            scpClient.uploadFile(srcPath, destPath)
+        elif choice == '2':
+            downloadPath = str(input("Input destination file path:"))
+            scpClient.downloadFile(downloadPath)
+        elif choice == '3' or choice == 'q' or choice == 'exit':
+            break
+        else:
+            print("Invalid choice, select function again:")
+            pass
+    scpClient.close()
 
+#-----------------------------------------------------------------------------
+if __name__ == '__main__':
+    main()
