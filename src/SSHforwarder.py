@@ -40,7 +40,7 @@
     Dependency: SSHconnector.py
 
     Usage steps:
-    1. Init the forwarder obj by pass in the paramters.
+    1. Init the forwarder obj by pass in the parameters.
     2. Add the jumphost info(address, user, password) in the sequence from user
     to the target remote host one by one.
     3. Call forward function to start.

@@ -119,4 +119,132 @@ The SSH Forwarder workflow is shown below:
 
 ------
 
-System Design 
+### Program Design 
+
+The SSH connector design will follow the linked list and the connector and host is one to one matching. For each SSH Connector object, it will have 4 main set of parameters: 
+
+- **The host information**: The connected host's ip, user name, and login credential. 
+- **Command list and result handling function**: List of command will be executed and the reference of the function to process command result. 
+- **Children SSH connectors list**: List of connector reference to the next level of connectors.
+- **Transport Controller**: transport the children connector's SSH host information and command execution to parent and send to the related host through the SSH tunnel.  
+
+The  connector work flow is shown below:
+
+![](doc/img/rm_09_connectorWorkflow.png)
+
+
+
+------
+
+### Program Setup
+
+##### Development Environment : Python 3.7.4+
+
+##### Additional Lib/Software 
+
+| Lib Module   | Version | Installation           | Lib link                                 |
+| ------------ | ------- | ---------------------- | ---------------------------------------- |
+| **Paramiko** | 2.11.0  | `pip install paramiko` | https://www.paramiko.org/installing.html |
+| **SCP**      | 0.14.4  | `pip install scp`      | https://pypi.org/project/scp/            |
+
+##### Program File List
+
+| Program File                          | Execution Env | Description                           |
+| ------------------------------------- | ------------- | ------------------------------------- |
+| `src/ SSHconnector.py`                | python 3      | Main SSH connector lib module.        |
+| `src/ SCPconnector.py`                | python 3      | Main SCP connector lib module.        |
+| `src/ SCPforwarder.py`                | python 3      | Main SSH forward function lib module. |
+| `src/testCases/ sshConnectorTest.py`  | python 3      | SSH connector function test module.   |
+| `src/testCases/ scpConnectorTest.py`  | python 3      | SCP connector function test module.   |
+| `src/testCases/ scpForwarederTest.py` | python 3      | SSH forwarder function test module.   |
+| `src/example/ loadTester.py `         |               | SSH connection stress test program.   |
+
+
+
+------
+
+### Program Usage
+
+
+
+#### SSH Connector Usage
+
+To run module directly do SSH connection, run the module and follow the instruction to input the parameters. 
+
+```
+python SSHconnector.py
+```
+
+To use the module in your program module, follow below steps or the example in  test case `sshConnectorTest.py`
+
+1. Init all the SSH connectors.
+
+2. Create the SSH tunnel chain by `addChlid()` function.
+
+3. Add the commands you want to execute and the result handler function in each host's related connector by `addCmd()` function.
+
+4. Init the SSH  tunnel chain by all the root connector's `InitTunnel()`.
+
+5. Run all the commands in every connector by call the root connectors' `runCmd()` function.
+
+6. After finished call root connector's close() to close all the SSH session.
+
+
+
+#### SCP Connector Usage
+
+To run module directly do SCP file transfer, run the module and follow the instruction to input the parameters. 
+
+```
+python SCPconnector.py
+```
+
+To use the module in your program module, follow below steps or the example in  test case `scpConnectorTest.py`
+
+1. Init all the SSH connectors with the target host and jump host chain information. 
+2. Call function `uploadfile()` to scp file from local to the target node specific folder. 
+3. Call function `downloadfile()` to scp file from remote node to local
+
+Example:
+
+```
+destInfo = ('<ipaddress>', '<userA>', '<userApassword>')
+jumphosts = [('<ipaddress>', '<userA>', '<userApassword>'), ('<ipaddress>', '<userA>', '<userApassword>')]
+scpClient = scpConnector(destInfo, jumpChain=jumphosts, showProgress=True)
+scpClient.uploadFile('scpTest.txt', '~/scpTest2.txt')
+scpClient.downFile('~/scpTest2.txt')
+scpClient.close()
+```
+
+
+
+#### SSH Forwarder Usage
+
+To run module directly do SSH port forward, run the module and follow the instruction to input the parameters. 
+
+```
+python SSHforwarder.py
+```
+
+  Usage steps:
+
+1. Init the forwarder obj by pass in the parameters.
+
+2. Add the jumphost info(address, user, password) in the sequence from user to the target remote host one by one.
+
+3. Call  function `startForward()` to start.
+4. Open browser with the URL `http(s)://127.0.0.1:<local Port Number>`  to check the web page. 
+
+
+
+------
+
+### Problem and Solution
+
+If you got any problem or bug during the usage, please refer to `doc/ProblemAndSolution.md` or issue page to check whether there is any similar problem and we will provide the solution. 
+
+
+
+------
+
+>  Last edit by LiuYuancheng (liu_yuan_cheng@hotmail.com) at 30/05/2024, if you have any problem please free to message me.
