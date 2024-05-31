@@ -99,3 +99,24 @@ The SSH Connector module is designed to build an SSH connection tunnel tree/chai
 
 
 
+#### SCP Connector Introduction
+
+The SCP connector module is an extension module of the SSH connector, it will use SSHconnector to create the SSH tunnel first then use python-scp module to upload/download file from the program running host to the target server through a jump hosts chain.
+
+The SCP connector workflow is shown below:
+
+![](doc/img/rm_07_scp.png)
+
+#### SSH Forwarder Introduction 
+
+The SSH forwarder module is an extension module of the SSH connector, it will use SSHconnector to create the SSH tunnel first then forward a remote host port through several jump hosts to a local/other-remote host's port (Assume the firewall between only allows port 22 open). Such as connect a port of a remote  web server (i.e. 80/443/8080) where only SSH port (usually port 22)  is reachable. Then the user can access the web via URL `http(s)://127.0.0.1:<local Port Number>` . 
+
+The SSH Forwarder workflow is shown below:
+
+![](doc/img/rm_08_sshforward.png)
+
+
+
+------
+
+System Design 

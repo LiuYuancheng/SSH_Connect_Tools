@@ -11,9 +11,9 @@
 # Author:      Yuancheng Liu
 #
 # Created:     2022/08/08
-# Version:     v_0.1
-# Copyright:   National Cybersecurity R&D Laboratories
-# License:     
+# Version:     v_0.1.3
+# Copyright:   Copyright (c) 2024 LiuYuancheng
+# License:     MIT License      
 #-----------------------------------------------------------------------------
 """Program Design:
     We want to create port forwarding function through several jump-hosts as 
@@ -53,24 +53,6 @@ import select
 import socketserver as SocketServer
 from SSHconnector import sshConnector, CH_KIND
 
-DEBUG_MD = True # debug mode flag
-
-#-----------------------------------------------------------------------------
-def debugprint(s):
-    if DEBUG_MD: print(s)
-
-# Forward tunnerl function.
-def forward_tunnel(local_port, remote_host, remote_port, transport):
-    # this is a little convoluted, but lets me configure things for the Handler
-    # object.  (SocketServer doesn't give Handlers any way to access the outer
-    # server normally.)
-    class SubHander(Handler):
-        chain_host = remote_host
-        chain_port = remote_port
-        ssh_transport = transport
-
-    ForwardServer(("", local_port), SubHander).serve_forever()
-
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 class ForwardServer(SocketServer.ThreadingTCPServer):
@@ -82,57 +64,54 @@ class ForwardServer(SocketServer.ThreadingTCPServer):
 class Handler(SocketServer.BaseRequestHandler):
     
     def handle(self):
+        channel = None
+        # Init the transport channel
         try:
-            chan = self.ssh_transport.open_channel(
-                CH_KIND,
-                (self.chain_host, self.chain_port),
-                self.request.getpeername(),
-            )
-        except Exception as e:
-            debugprint( "Incoming request to %s:%d failed: %s"
-                % (self.chain_host, self.chain_port, repr(e))
-            )
+            channel = self.ssh_transport.open_channel(CH_KIND,
+                    (self.chain_host, self.chain_port), self.request.getpeername())
+        except Exception as err:
+            print("Error > handle() Incoming request to %s:%d failed: %s" 
+                  % (self.chain_host, self.chain_port, str(err)))
             return
-        if chan is None:
-            debugprint( "Incoming request to %s:%d was rejected by the SSH server."
-                % (self.chain_host, self.chain_port)
-            )
+        
+        if channel is None:
+            print( "Warning > handle() Incoming request to %s:%d was rejected by the SSH server."
+                % (self.chain_host, self.chain_port))
             return
 
-        debugprint("Connected!  Tunnel open %r -> %r -> %r"
-            % ( self.request.getpeername(), 
-                chan.getpeername(), 
-                (self.chain_host, self.chain_port),)
-        )
+        print("Connected!  Tunnel open %r -> %r -> %r"
+            % ( self.request.getpeername(), channel.getpeername(), (self.chain_host, self.chain_port)))
+        
         while True:
-            r, w, x = select.select([self.request, chan], [], [])
+            r, w, x = select.select([self.request, channel], [], [])
             if self.request in r:
                 data = self.request.recv(1024)
                 if len(data) == 0: break
-                chan.send(data)
-            if chan in r:
-                data = chan.recv(1024)
+                channel.send(data)
+            if channel in r:
+                data = channel.recv(1024)
                 if len(data) == 0: break
                 self.request.send(data)
 
         peername = self.request.getpeername()
-        chan.close()
+        channel.close()
         self.request.close()
-        debugprint("Tunnel closed from %r" % (peername,))
+        print("Tunnel closed from %r" % (peername,))
 
 #-----------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 class localForwarder(object):
 
-    def __init__(self, localPort, remoteHost, remotePort, remoteUser=None, remotePwd=None) -> None:
-        """ Init the forwarder object.
-
-        Args:
-            localPort (int): local port 
-            remoteHost (str): target remote host address.
-            remotePort (str): target remote host's port need to be forwarded to local.
-            remoteUser (str, optional): remote host username. Defaults to None.
-            remotePwd (str, optional): remote host password. Defaults to None.
+    def __init__(self, localPort, remoteHost, remotePort, 
+                 remoteUser=None, remotePwd=None) -> None:
+        """ Init the forwarder object. Example:
+            forwarder = localForwarder(localport, <target_IP>, <target_Port>)
+            Args:
+                localPort (int): local port 
+                remoteHost (str): target remote host address.
+                remotePort (str): target remote host's port need to be forwarded to local.
+                remoteUser (str, optional): remote host username. Defaults to None.
+                remotePwd (str, optional): remote host password. Defaults to None.
         """
         self.localPort = localPort
         self.remoteHost = remoteHost
@@ -140,16 +119,16 @@ class localForwarder(object):
         self.remoteUser = remoteUser
         self.remotePasswd= remotePwd
         self.forwardServer = None
-        self.connectors = [] # sshConnectors string.
+        self.connectors = [] # sshConnectors list.
 
 #-----------------------------------------------------------------------------
     def addNextJH(self,jumphost, username, password, port=22):
         """ Add next one jump host in the jumphost queue.
-        Args:
-            jumphost (str): jumphost address.
-            username (str): jumphost ssh login user name.
-            password (str): jumphost ssh login password.
-            port (int, optional): ssh port. Defaults to 22.
+            Args:
+                jumphost (str): jumphost address.
+                username (str): jumphost ssh login user name.
+                password (str): jumphost ssh login password.
+                port (int, optional): ssh port. Defaults to 22.
         """
         parent = None if len(self.connectors) == 0 else self.connectors[-1]
         nextConnector = sshConnector(parent, jumphost, username, password, port=port)
@@ -171,10 +150,7 @@ class localForwarder(object):
 
 #-----------------------------------------------------------------------------
     def startForward(self):
-        """ Start to forward the remote host bind port to the local port.
-        Returns:
-            _type_: _description_
-        """
+        """ Start to forward the remote host bind port to the local port."""
         if len(self.connectors) == 0:
             print("Error: no jumphost server setup.")
             return None
@@ -189,15 +165,14 @@ class localForwarder(object):
             chain_host = self.remoteHost
             chain_port = self.remotePort
             ssh_transport = transport
-
-        debugprint('Starting the forward server ...')  
+        print('Starting the forward server ...')  
         try:
             self.forwardServer = ForwardServer(("", self.localPort), SubHander)
             self.forwardServer.serve_forever()
         except KeyboardInterrupt:
             self.stopForward()
             self.connectors[0].close()
-        debugprint('Finihsed close all ssh session.')
+        print('Finihsed close all ssh session.')
 
 #-----------------------------------------------------------------------------
     def stopForward(self):
@@ -205,5 +180,27 @@ class localForwarder(object):
         if self.forwardServer:
             self.forwardServer.shutdown()
             self.forwardServer = None
-        debugprint('Port forwarding stopped.')
+        print('Port forwarding stopped.')
 
+#-----------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+def main():
+    print("Test init single line ssh tunnel connection through multiple jumphosts.")
+    localport = int(input("Please input the local port to bind: "))
+    targetip = str(input("Please input the target ip: "))
+    targetport = int(input("Please input the target port to bind: "))
+    forwarder = localForwarder(localport, targetip, targetport)
+    jumphostNum = int(input("Input jumphost number (int):"))
+    if jumphostNum > 0:
+        for i in range (int(jumphostNum)):
+            host = str(input("Input jumphost %d hostname:"%(i+1)))
+            username = str(input("Input jumphost %d username:"%(i+1)))
+            password = str(input("Input jumphost %d password:"%(i+1)))
+            forwarder.addNextJH(host, username, password)
+    print("Start forward with below ssh tunnel config:")        
+    print(forwarder.getJsonInfo())
+    forwarder.startForward()
+
+#-----------------------------------------------------------------------------
+if __name__ == '__main__':
+    main()
