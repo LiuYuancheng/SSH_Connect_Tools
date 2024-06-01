@@ -2,12 +2,16 @@
 
 ![](doc/img/logo.png)
 
-**Program Design Purpose**: We aim to create a Python SSH tool library that facilitates SSH communication, SCP file transfer, and SSH port forwarding through multiple jump hosts in an SSH tunnel chain. The library is designed to provide a simple API for establishing nested SSH tunnel connections through multiple jump hosts with customizable TCP ports. This allows users or their programs to automate SSH tasks such as:
+**Program Design Purpose**: We aim to create a simple Python SSH tool library that facilitates SSH communication, SCP file transfer, and SSH port forwarding through multiple jump hosts in an SSH tunnel chain. The library is designed to provide a simple API for establishing nested SSH tunnel connections through multiple jump hosts with customizable TCP ports. This allows users or their programs to automate SSH tasks such as:
 
 1. Batch processing SSH connection tasks, such as connecting to multiple servers' IPMI interfaces to collect operational data.
 2. Starting hundreds of threads to SSH into target services for load and stress testing.
 3. Transferring files between different servers using SCP.
 4. Forwarding ports from various servers to the local host, enabling users to access multiple web interfaces in a cluster.
+
+The system workflow is shown below:
+
+![](doc/img/rm_00_title.png)
 
 ```
 # Created:     2022/08/01
@@ -24,7 +28,7 @@
 
 ### Introduction
 
-This project provides three main modules to help users automate SSH tasks, including running multiple commands on different hosts, transferring files between servers via SCP, and forwarding traffic to the local host via SSH.
+This project provides three main modules to help users automate SSH tasks, including running multiple commands on different hosts, transferring files between servers via SCP, and forwarding traffic to the local host via SSH. 
 
 1. **SSH-Connector**: This module creates an SSH connection tunnel tree, allowing users to access and execute commands on different hosts through multiple jump hosts in a cluster.
 2. **SCP-Connector**: This module facilitates file transfers (uploading and downloading) between nodes through the SSH tunnel tree.
@@ -121,18 +125,21 @@ The SSH Forwarder workflow is shown below:
 
 ### Program Design 
 
-The SSH connector design will follow the linked list and the connector and host is one to one matching. For each SSH Connector object, it will have 4 main set of parameters: 
-
-- **The host information**: The connected host's ip, user name, and login credential. 
-- **Command list and result handling function**: List of command will be executed and the reference of the function to process command result. 
-- **Children SSH connectors list**: List of connector reference to the next level of connectors.
-- **Transport Controller**: transport the children connector's SSH host information and command execution to parent and send to the related host through the SSH tunnel.  
-
-The  connector work flow is shown below:
+The SSH connector design will follow the linked list iteration design, the connector and host is one to one matching. The  connector work flow is shown below:
 
 ![](doc/img/rm_09_connectorWorkflow.png)
 
+ For each SSH Connector object, it will have 4 main set of parameters: 
 
+- **The host information**: The connected host's ip, user name, and login credential. 
+
+- **Command list and result handling function**: List of command will be executed and the reference of the function to process command result. 
+
+- **Children SSH connectors list**: List of connector reference to the next level of connectors.
+
+- **Transport Controller**: transport the children connector's SSH host information and command execution to parent and send to the related host through the SSH tunnel.  
+
+  
 
 ------
 
