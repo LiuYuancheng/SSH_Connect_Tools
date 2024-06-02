@@ -24,6 +24,28 @@ The system workflow is shown below:
 
 [TOC]
 
+- [SSH Connection Tools](#ssh-connection-tools)
+    + [Introduction](#introduction)
+      - [SSH Connector Introduction](#ssh-connector-introduction)
+        * [Scenario01: Linear Connection Through Single SSH Tunnel](#scenario01--linear-connection-through-single-ssh-tunnel)
+        * [Scenario 02: Linear Connections Through Multiple SSH Tunnels](#scenario-02--linear-connections-through-multiple-ssh-tunnels)
+        * [Scenario 03: Tree Connection Through Multiple SSH Tunnels](#scenario-03--tree-connection-through-multiple-ssh-tunnels)
+        * [Scenario 04: Mixed Connection Through Multiple SSH Tunnels](#scenario-04--mixed-connection-through-multiple-ssh-tunnels)
+      - [SCP Connector Introduction](#scp-connector-introduction)
+      - [SSH Forwarder Introduction](#ssh-forwarder-introduction)
+    + [Program Design](#program-design)
+    + [Program Setup](#program-setup)
+        * [Development Environment : Python 3.7.4+](#development-environment---python-374-)
+        * [Additional Lib/Software](#additional-lib-software)
+        * [Program File List](#program-file-list)
+    + [Program Usage](#program-usage)
+      - [SSH Connector Usage](#ssh-connector-usage)
+      - [SCP Connector Usage](#scp-connector-usage)
+      - [SSH Forwarder Usage](#ssh-forwarder-usage)
+    + [Problem and Solution](#problem-and-solution)
+
+
+
 ------
 
 ### Introduction
@@ -206,7 +228,7 @@ To use the module in your program, follow these steps or refer to the example in
 
 Example:
 
-```
+```python
 mainInfo = ('<ipaddress>', '<userA>', '<userApassword>')
 jumpInfo = ('<ipaddress>', '<userB>', '<userApassword>')
 
@@ -241,7 +263,7 @@ To use the module in your program, follow these steps or refer to the example in
 
 Example:
 
-```
+```python
 destInfo = ('<ipaddress>', '<userA>', '<userApassword>')
 jumphosts = [('<ipaddress>', '<userA>', '<userApassword>'), ('<ipaddress>', '<userA>', '<userApassword>')]
 scpClient = scpConnector(destInfo, jumpChain=jumphosts, showProgress=True)
@@ -269,7 +291,7 @@ To use the module in your program, follow these steps or refer to the example in
 
 Example:
 
-```
+```python
 localport = 8000
 remoteHost = ('<target ipaddress>', 8080)    
 forwarder = localForwarder(localport, remoteHost[0], remoteHost[1])
@@ -277,7 +299,7 @@ jumphost = {  	'address'	: '<ipaddress>',
 				'user'		: '<userA>',
 				'password'	: '<userApassword>'
 }
-forwarder.addNextJH(gw['address'], gw['user'], gw['password'])
+forwarder.addNextJH(jumphost['address'], jumphost['user'], jumphost['password'])
 print(forwarder.getJsonInfo())
 forwarder.startForward()
 ```
