@@ -160,7 +160,7 @@ class localForwarder(object):
         if transport is None:
             print("Error: connectors not provide any transport channel.")
             return None
-        # create a handler class and pass in the handler in TCP forwared server.
+        # create a handler class and pass in the handler in TCP forward server.
         class SubHander(Handler):
             chain_host = self.remoteHost
             chain_port = self.remotePort
@@ -172,7 +172,7 @@ class localForwarder(object):
         except KeyboardInterrupt:
             self.stopForward()
             self.connectors[0].close()
-        print('Finihsed close all ssh session.')
+        print('Finished close all ssh session.')
 
 #-----------------------------------------------------------------------------
     def stopForward(self):

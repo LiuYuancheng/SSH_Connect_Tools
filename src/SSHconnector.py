@@ -43,7 +43,7 @@
     
     Usage steps:
     1. Init all the connectors.
-    2. Create the ssh tunnel chain by addChlid() function.
+    2. Create the ssh tunnel chain by addChild() function.
     3. Add the cmd you want to execute and the result handler function in each host's 
        related connector by addCmd() function.
     4. Init the ssh tunnel chain by all the root connector's InitTunnel().
@@ -92,7 +92,7 @@ class sshConnector(object):
             Args:
                 childConnector (sshConnector): ssh connector/paramiko.SSHClient object.
             Returns:
-                bool: True if the chlid is added. 
+                bool: True if the child ssh connector is added. 
         """
         if self.lock: 
             print("Error: can not add new child host: children host adding locked!")
@@ -155,7 +155,7 @@ class sshConnector(object):
             transport = self.parent.client.get_transport()
             srcAddr = (self.parent.host, self.parent.port)
             destAddr = (self.host, self.port)
-            # create the channle from parent to current host.
+            # create the channel from parent to current host.
             channel = transport.open_channel(CH_KIND, destAddr, srcAddr)
             try:
                 self.client.connect(self.host, username=self.username,
@@ -180,7 +180,7 @@ class sshConnector(object):
 #-----------------------------------------------------------------------------
     def runCmd(self, interval=0.1):
         """ Run the cmd in the command queue one by one, sleep time interval 
-            after finihsed executed one command.
+            after finished executed one command.
             Args:
                 interval (_type_, optional): Sleep time after time interval 
                     (unit second). Defaults to None.
